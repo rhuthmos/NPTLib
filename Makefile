@@ -1,13 +1,13 @@
 default: app
 
 context.o: context.s
-	gcc -m32 -c context.s
+	gcc -m32 -g -c context.s
 
 thread.o: thread.c
-	gcc -Werror -m32 -O3 -c thread.c
+	gcc -Werror -m32 -O3 -g -c thread.c
 
 app: app.c thread.o context.o
-	gcc -O3 -m32 thread.o context.o -o app app.c
+	gcc -O3 -m32 thread.o context.o -g -o app app.c
 
 run: app
 	./app
