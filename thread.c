@@ -64,3 +64,11 @@ void thread_exit()
 void wait_for_all()
 {
 }
+
+void sleep(struct lock *lock)
+{
+}
+
+void wakeup(struct lock *lock)
+{
+}
