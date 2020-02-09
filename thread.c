@@ -120,3 +120,11 @@ void wait_for_all()
 		schedule1();
 	}
 }
+
+void sleep(struct lock *lock)
+{
+}
+
+void wakeup(struct lock *lock)
+{
+}
