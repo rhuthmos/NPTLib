@@ -40,7 +40,12 @@ static void push_back(struct thread *t)
 static struct thread *pop_front()
 {
 	struct thread *ptr = ready_list;
-	ready_list = ready_list->next;
+	if (ready_list != NULL){
+		ready_list = ready_list->next;
+		ptr->next = NULL;
+	}
+
+	
 	return ptr;
 }
 
