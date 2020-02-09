@@ -16,19 +16,22 @@ struct thread {
 struct thread *ready_list = NULL;     // ready list
 struct thread *cur_thread = NULL;     // current thread
 
+struct thread *all_threads = NULL;
+struct thread *last_thread;
+
 // defined in context.s
 void context_switch(struct thread *prev, struct thread *next);
 
 // insert the input thread to the end of the ready list.
-static void push_back(struct thread *t)
+static void push_back(struct thread *list, struct thread *t)
 {
 	t->next = NULL;
 	t->prev = NULL;
-	if (ready_list==NULL){
+	if (list==NULL){
 		ready_list = t;
 		return;
 	}
-	struct thread *ptr = ready_list;
+	struct thread *ptr = list;
 	while(ptr->next != NULL){
 		ptr = ptr->next;
 	}
@@ -66,7 +69,7 @@ static void schedule1()
 	if (cur_thread==NULL){
 		cur_thread = malloc(sizeof(struct thread));
 	}
-	push_back(cur_thread);
+	push_back(ready_list, cur_thread);
 	schedule();
 }
 
@@ -94,9 +97,12 @@ void create_thread(func_t func, void *param)
 	stack--;
 	*stack = 0;
 	t->esp = stack;
+	struct thread* copy = t;
+	copy->esp -= 1018;
+	push_back(all_threads, copy);
 	t->next = NULL;
 	t->prev = NULL;
-	push_back(t);
+	push_back(ready_list,t);
 
 	
 }
@@ -110,6 +116,15 @@ void thread_yield()
 // call schedule
 void thread_exit()
 {
+	struct thread* ptr = all_threads;
+	while (ptr!= NULL && ptr!= last_thread){
+		ptr = ptr->next;
+	}
+	free(ptr->esp);
+	free(last_thread);
+	last_thread = NULL;
+
+	last_thread = cur_thread;
 	schedule();
 }
 
@@ -123,8 +138,24 @@ void wait_for_all()
 
 void sleep(struct lock *lock)
 {
+	void* wait_list = lock->wait_list;
+	if (wait_list==NULL){
+		wait_list = (struct thread*)cur_thread;
+	}
+	else{
+		while((*((struct thread*)wait_list)).next!= NULL){
+			wait_list = (*((struct thread*)wait_list)).next;
+			
+		}
+		(*((struct thread*)wait_list)).next = cur_thread;
+	}
+	schedule();
 }
 
 void wakeup(struct lock *lock)
 {
+	if (lock->wait_list != NULL){
+		struct thread* thread = lock->wait_list;
+		lock->wait_list = (*((struct thread*)(lock->wait_list))).next;		
+	}
 }
