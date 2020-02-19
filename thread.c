@@ -11,14 +11,14 @@ struct thread {
 	void *esp;
 	struct thread *next;
 	struct thread *prev;
+	void *baseEsp;
 };
 
 struct thread *ready_list = NULL;     // ready list
 struct thread *cur_thread = NULL;     // current thread
 
-struct thread *all_threads = NULL;
-struct thread *last_thread;
-
+struct thread *last_thread = NULL;
+static int waitingThreads = 0;
 // defined in context.s
 void context_switch(struct thread *prev, struct thread *next);
 
@@ -80,9 +80,11 @@ static void schedule1()
 // push the current thread to the end of the ready list
 void create_thread(func_t func, void *param)
 {
-	unsigned *stack = malloc(4096);
-	stack += 1024;
 	struct thread *t =malloc(sizeof(struct thread));
+	unsigned *stack = malloc(4096);
+	t->baseEsp = stack;
+	stack += 1024;
+
 	*stack = (unsigned)param;
 	stack --;
 	*stack = 0;
@@ -97,9 +99,6 @@ void create_thread(func_t func, void *param)
 	stack--;
 	*stack = 0;
 	t->esp = stack;
-	struct thread* copy = t;
-	copy->esp -= 1018;
-	push_back(all_threads, copy);
 	t->next = NULL;
 	t->prev = NULL;
 	push_back(ready_list,t);
@@ -115,13 +114,11 @@ void thread_yield()
 
 // call schedule
 void thread_exit()
-{
-	struct thread* ptr = all_threads;
-	while (ptr!= NULL && ptr!= last_thread){
-		ptr = ptr->next;
+{	
+	if (last_thread!=NULL){
+		free(last_thread->baseEsp);
+		free(last_thread);
 	}
-	free(ptr->esp);
-	free(last_thread);
 	last_thread = NULL;
 
 	last_thread = cur_thread;
@@ -131,7 +128,7 @@ void thread_exit()
 // call schedule1 until ready_list is null
 void wait_for_all()
 {
-	while(ready_list!=NULL){
+	while(ready_list!=NULL || waitingThreads){
 		schedule1();
 	}
 }
@@ -140,7 +137,7 @@ void sleep(struct lock *lock)
 {
 	void* wait_list = lock->wait_list;
 	if (wait_list==NULL){
-		wait_list = (struct thread*)cur_thread;
+		lock->wait_list = (struct thread*)cur_thread;
 	}
 	else{
 		while((*((struct thread*)wait_list)).next!= NULL){
@@ -149,6 +146,8 @@ void sleep(struct lock *lock)
 		}
 		(*((struct thread*)wait_list)).next = cur_thread;
 	}
+	waitingThreads++;
+
 	schedule();
 }
 
@@ -156,6 +155,9 @@ void wakeup(struct lock *lock)
 {
 	if (lock->wait_list != NULL){
 		struct thread* thread = lock->wait_list;
-		lock->wait_list = (*((struct thread*)(lock->wait_list))).next;		
+		lock->wait_list = (*((struct thread*)(lock->wait_list))).next;
+		waitingThreads--;
+
+		push_back(ready_list, thread);
 	}
 }

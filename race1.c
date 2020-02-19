@@ -25,12 +25,12 @@ void foo(void *ptr)
 {
 	struct lock *l = (struct lock*)ptr;
 	int val;
-	
+	acquire(l);
 	val = counter;
 	val++;
 	thread_yield();
 	counter = val;
-
+	release(l);
 	thread_exit();
 }
 
@@ -38,11 +38,11 @@ void bar(void *ptr)
 {
 	struct lock *l = (struct lock*)ptr;
 	int val;
-
+	acquire(l);
 	val = counter;
 	val++;
 	counter = val;
-
+	release(l);
 	thread_exit();
 }
 
